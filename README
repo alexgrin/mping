@@ -4,12 +4,12 @@ Description
 -----------
 A network testing tool to verify multicast connectivity.
 
-This tool is mostly useful for checking if multicast packets
-can cross multiple hops across the routers.
+This tool is used for checking if multicast packets can
+cross multiple routers.
 
 Application has to be executed on all of the network leaves
-used in connectivity testing - single sender and multiple 
-receivers.
+used in connectivity testing - tests require a single sender
+and multiple receivers.
 
 
 Usage Example
