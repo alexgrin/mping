@@ -6,6 +6,8 @@ PRGNAME=mping
 
 all: $(PRGNAME)
 
+clean:
+	rm -f $(PRGNAME) $(OBJ)
 %.o: %.c
 	$(CC) $(WFLAGS) -c -o $@ $(LOCAL_CFLAGS) $(CPPFLAGS) $(CFLAGS) $<
 
