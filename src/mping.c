@@ -234,6 +234,14 @@ int run_server ()
 		return 1;
 	}
 
+	int reuse = 1;
+	if(setsockopt(sock_desc, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse)) < 0)
+	{
+		perror("Setting SO_REUSEADDR error");
+		close(sock_desc);
+		return 1;
+	}
+
 	memset((char *) &group_sock, 0, sizeof(group_sock));
 	group_sock.sin_family = AF_INET;
 	group_sock.sin_addr.s_addr = inet_addr(mcast_addr);
@@ -471,8 +479,8 @@ int main (int argc, char *argv[ ])
 		addr=inet_addr(mcast_addr);
 		if ( addr == (in_addr_t)(-1) || !IN_MULTICAST(ntohl(addr)))
 		{
-			fprintf(stderr, "Invalid address specified for multicast group, using %s.\n", DEFAULT_MADDR);
-			snprintf(mcast_addr, MAX_ADDR_LEN, "%s", DEFAULT_MADDR);
+			fprintf(stderr, "Invalid address specified for multicast group - address must be multicast.\n");
+			usage(1);
 		}
 	}
 	
@@ -481,10 +489,10 @@ int main (int argc, char *argv[ ])
 	else
 	{
 		udp_port=atoi(port);
-		if (udp_port <=0 || udp_port > 65535)
+		if (udp_port < 1024 || udp_port > 65535)
 		{
-			fprintf(stderr, "Invalide port set, using %d.\n", DEFAULT_PORT);
-			udp_port=DEFAULT_PORT;
+			fprintf(stderr, "Invalide port set - must be between 1024 and 65535.\n");
+			usage(1);
 		}
 		
 	}
@@ -532,11 +540,10 @@ int main (int argc, char *argv[ ])
 		{
 			delay.tv_sec=atol(interval)/1000;
 			delay.tv_usec=(atol(interval)*1000)%1000000;
-			if (atoi(interval) <= 1)
+			if (atoi(interval) < 1)
 			{
-				fprintf(stderr, "Invalide interval set, using 1 second.\n");
-				delay.tv_sec=1;
-				delay.tv_usec=0;
+				fprintf(stderr, "Invalide interval set - must be greater than 0.\n");
+				usage(1);
 			}
 		}
 
@@ -559,8 +566,8 @@ int main (int argc, char *argv[ ])
 			send_ttl=atoi(ttl_string);
 			if (send_ttl <= 0 || send_ttl > 255)
 			{
-				fprintf(stderr, "Invalid TTL value, using %d.\n", DEFAULT_TTL);
-				send_ttl=DEFAULT_TTL;
+				fprintf(stderr, "Invalid TTL value - must be between 1 and 255.\n");
+				usage(1);
 			}
 		}
 		
@@ -571,8 +578,8 @@ int main (int argc, char *argv[ ])
 			data_size=atoi(size_string);
 			if (data_size < sizeof(struct ping_header) || data_size > MAX_SIZE)
 			{
-				fprintf(stderr, "Invalid payload size value, using %d.\n", DEFAULT_SIZE);
-				data_size=DEFAULT_SIZE;
+				fprintf(stderr, "Invalid payload size value - must be between %d and %d.\n", sizeof(struct ping_header), DEFAULT_SIZE);
+				usage(1);
 			}
 		}	
 				
