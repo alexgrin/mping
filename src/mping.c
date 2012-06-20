@@ -578,7 +578,7 @@ int main (int argc, char *argv[ ])
 			data_size=atoi(size_string);
 			if (data_size < sizeof(struct ping_header) || data_size > MAX_SIZE)
 			{
-				fprintf(stderr, "Invalid payload size value - must be between %d and %d.\n", sizeof(struct ping_header), DEFAULT_SIZE);
+				fprintf(stderr, "Invalid payload size value - must be between %d and %d.\n", (int)(sizeof(struct ping_header)), DEFAULT_SIZE);
 				usage(1);
 			}
 		}	
