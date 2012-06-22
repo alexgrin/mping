@@ -22,7 +22,11 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/select.h>
+#ifdef ANDROID
+#include <linux/signal.h>
+#else
 #include <sys/signal.h>
+#endif
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -52,6 +56,7 @@ static int udp_port;
 static int verbose;
 static int send_ttl;
 static int data_size;
+static int sender;
 
 static int recv_len = sizeof(recv_buf);
 
@@ -89,22 +94,29 @@ static struct client_store* clients = NULL;
 static
 void finish(int ignore)
 {
-	signal(SIGINT, SIG_IGN);
-	printf("\n");
-	struct client_store * client;
-	for (client=clients; client!=NULL; client=client->hh.next)
+
+	if(sender)
 	{
-		struct in_addr blah={.s_addr=client->s_addr};
-		printf("%s: rtt min/avg/max: %lu.%03lu/%lu.%03lu/%lu.%03lu ms, loss: %d%% (%d packets)\n", inet_ntoa(blah),
-								(client->min_rtt.tv_sec*1000000+client->min_rtt.tv_usec)/1000,
-								(client->min_rtt.tv_sec*1000000+client->min_rtt.tv_usec)%1000,
-								((client->total_time.tv_sec*1000000+client->total_time.tv_usec)/client->num_pongs)/1000,
-								((client->total_time.tv_sec*1000000+client->total_time.tv_usec)/client->num_pongs)%1000,
-								(client->max_rtt.tv_sec*1000000+client->max_rtt.tv_usec)/1000,
-								(client->max_rtt.tv_sec*1000000+client->max_rtt.tv_usec)%1000,
-								((send_sequence-client->num_pongs)*100/send_sequence),
-								send_sequence-client->num_pongs);
+		signal(SIGINT, SIG_IGN);
+		signal(SIGTERM, SIG_IGN);
+		printf("\n");
+		struct client_store * client;
+		for (client=clients; client!=NULL; client=client->hh.next)
+		{
+			struct in_addr blah={.s_addr=client->s_addr};
+			printf("%s: rtt min/avg/max: %lu.%03lu/%lu.%03lu/%lu.%03lu ms, loss: %d%% (%d packets)\n", inet_ntoa(blah),
+									(client->min_rtt.tv_sec*1000000+client->min_rtt.tv_usec)/1000,
+									(client->min_rtt.tv_sec*1000000+client->min_rtt.tv_usec)%1000,
+									((client->total_time.tv_sec*1000000+client->total_time.tv_usec)/client->num_pongs)/1000,
+									((client->total_time.tv_sec*1000000+client->total_time.tv_usec)/client->num_pongs)%1000,
+									(client->max_rtt.tv_sec*1000000+client->max_rtt.tv_usec)/1000,
+									(client->max_rtt.tv_sec*1000000+client->max_rtt.tv_usec)%1000,
+									((send_sequence-client->num_pongs)*100/send_sequence),
+									send_sequence-client->num_pongs);
+		}
 	}
+
+	fflush(stdout);
 	exit(0);
 }
 
@@ -163,6 +175,9 @@ int run_client()
 		return 1;
 	}
 
+	signal(SIGINT, finish);
+	signal(SIGTERM, finish);
+
 	while(1)
 	{ 
 		recv_len = sizeof(recv_buf);
@@ -212,6 +227,12 @@ int run_client()
 			payload.hdr.send_time_sec=recv_ping_hdr->send_time_sec;
 			payload.hdr.send_time_usec=recv_ping_hdr->send_time_usec;
 			
+			if (verbose == 1)
+				printf("%d bytes from %s: seq=%d ttl=%d\n",
+					recv_bytes,
+					inet_ntoa(server_addr.sin_addr),
+					ntohl(recv_ping_hdr->sequence),
+					ntohl(payload.hdr.ttl));
 			sendto(sock_desc, &payload, recv_bytes, 0, (struct sockaddr *)&server_addr, sizeof(struct sockaddr));
 		}
 	}
@@ -274,6 +295,7 @@ int run_server ()
 	}
 
 	signal(SIGINT, finish);
+	signal(SIGTERM, finish);
 
 	send_sequence=0;
 	FD_SET(sock_desc, &master);
@@ -302,6 +324,7 @@ int run_server ()
 					if (!client)
 					{
 						signal(SIGINT, SIG_IGN);
+						signal(SIGTERM, SIG_IGN);
 						client = (struct client_store*)calloc(1, sizeof(*client));
 						client->s_addr=s_addr;
 						client->last_seq=0;
@@ -314,6 +337,7 @@ int run_server ()
 						client->max_rtt.tv_usec=0;
 						HASH_ADD(hh, clients, s_addr, sizeof(s_addr), client);
 						signal(SIGINT, finish);
+						signal(SIGTERM, finish);
 					}
 					
 					payload_timeval.tv_sec=ntohl(recv_ping_hdr->send_time_sec);
@@ -395,15 +419,16 @@ int main (int argc, char *argv[ ])
 	char *count=NULL;
 	char *ttl_string=NULL;
 	char *size_string=NULL;
-	int sender=0;
 	int listener=0;
 	
 	extern char *optarg;
 	extern int optind, optopt;
 
+
 	if (argc==1)
 		usage(0);
 	
+	sender=0;
 	verbose=1;
 	
 	while (( c = getopt(argc, argv, "c:g:hi:lp:qsI:S:T:V")) !=-1)
