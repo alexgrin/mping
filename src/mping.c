@@ -563,11 +563,15 @@ int main (int argc, char *argv[ ])
 		}
 		else
 		{
-			delay.tv_sec=atol(interval)/1000;
-			delay.tv_usec=(atol(interval)*1000)%1000000;
-			if (atoi(interval) < 1)
+			double secs = strtod(interval, NULL)/1000;		// returns zero on errors
+			if (secs > 0.0)
 			{
-				fprintf(stderr, "Invalide interval set - must be greater than 0.\n");
+				delay.tv_sec = (long) secs;
+				delay.tv_usec = (long) (1e6*(secs - delay.tv_sec));
+			}
+			else
+			{
+				fprintf(stderr, "Invalid interval set - must be greater than 0.\n");
 				usage(1);
 			}
 		}
