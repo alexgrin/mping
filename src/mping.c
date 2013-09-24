@@ -2,7 +2,7 @@
 Multicast Ping (mping) is a network administration utility used to test the
 reachability of multiple hosts via multicast traffic.
 
-Copyright (C) 2011 Aleksandr Grinberg
+Copyright (C) 2013 Lexi Grinberg
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
