@@ -18,7 +18,11 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <sys/types.h>
+#ifdef LINUX
 #include <linux/types.h>
+#else
+#include <sys/types.h>
+#endif
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/select.h>
@@ -42,6 +46,10 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DEFAULT_TTL 64
 #define DEFAULT_MADDR "226.1.1.1"
 #define MAX_ADDR_LEN 100
+
+#ifndef SOL_IP
+#define SOL_IP IPPROTO_IP
+#endif
 
 static struct in_addr local_iface;
 static struct sockaddr_in group_sock, server_addr, client_addr;
