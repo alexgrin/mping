@@ -18,9 +18,9 @@ make
 Usage
 -----
 
-   mping -l -I <interface address> [-p <udp port>] [-g <multicast group[/source]>] [-q]
-   mping -s -I <interface address> [-p <udp port>] [-g <multicast group>] [-i <interval in ms>] [-c <count>] [-T TTL ] [-q] [-S payload size]
-   Defaults: interval - 1 second, multicast group - 226.1.1.1 , udp port - 4322
+    mping -l -I <interface address> [-p <udp port>] [-g <multicast group[/source]>] [-q]
+    mping -s -I <interface address> [-p <udp port>] [-g <multicast group>] [-i <interval in ms>] [-c <count>] [-T TTL ] [-q] [-S payload size]
+    Defaults: interval - 1 second, multicast group - 226.1.1.1 , udp port - 4322
 
 Any-source multicast mode (ASM) used by default. If you want to use Source-specific multicast (SSM) mode, specify the source IP address of the multicast sender with the group option.
 
@@ -42,12 +42,15 @@ Verifying that multicast packets sent from Host A can be
 heard on Host B and Host C.
 
 Host B:
+
     user@host_b:/tmp$ mping -l -I 10.0.102.2
 
 Host C:
+
     user@host_c:/tmp$ mping -l -I 10.0.103.2
 
 Host A:
+
     user@host_a:/tmp$ mping -s -I 10.0.101.2 -c 10
     MPING 226.1.1.1 1024(1052) bytes of data.
     1024 bytes from 10.0.102.2: seq=0 ttl=62 time=0.889 ms
