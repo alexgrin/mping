@@ -1,8 +1,16 @@
 CC=gcc
 WFLAGS=-Wall -Werror -Wno-unused
 LOCAL_CFLAGS=-O2 -Iinclude -fno-strict-aliasing
-LINKFLAGS=-Wl,--no-undefined
 PRGNAME=mping
+
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+	CCFLAGS += -D LINUX
+	LINKFLAGS=-Wl,--no-undefined
+else ifeq ($(UNAME_S),Darwin)
+	CCFLAGS += -D OSX
+	LINKFLAGS=-Wl,-undefined,error
+endif
 
 all: $(PRGNAME)
 

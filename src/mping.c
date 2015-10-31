@@ -18,7 +18,11 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <sys/types.h>
+#ifdef LINUX
 #include <linux/types.h>
+#else
+#include <sys/types.h>
+#endif
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/select.h>
@@ -43,6 +47,10 @@ this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DEFAULT_MADDR "226.1.1.1"
 #define MAX_ADDR_LEN 100
 
+#ifndef SOL_IP
+#define SOL_IP IPPROTO_IP
+#endif
+
 static struct in_addr local_iface;
 static struct sockaddr_in group_sock, server_addr, client_addr;
 static int sock_desc, addr_len, recv_bytes;
@@ -50,6 +58,7 @@ static int stop_count;
 static char recv_buf[MAX_SIZE];
 static char mcast_addr[MAX_ADDR_LEN];
 static char local_addr[MAX_ADDR_LEN];
+static char src_addr[MAX_ADDR_LEN];
 static struct timeval delay;
 static int send_sequence;
 static int udp_port;
@@ -124,6 +133,7 @@ static
 int run_client()
 {
 	struct ip_mreq group;
+	struct ip_mreq_source group_source;
 	struct msghdr msgh;
 	struct cmsghdr *cmsg;
 	struct iovec iov;
@@ -165,14 +175,26 @@ int run_client()
 		close(sock_desc);
 		return 1;
 	}
- 
-	group.imr_multiaddr.s_addr = inet_addr(mcast_addr);
-	group.imr_interface.s_addr = inet_addr(local_addr);
-	if(setsockopt(sock_desc, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group, sizeof(group)) < 0)
-	{
-		perror("Adding multicast group error");
-		close(sock_desc);
-		return 1;
+
+	if (strlen(src_addr) != 0) {
+		group_source.imr_multiaddr.s_addr = inet_addr(mcast_addr);
+		group_source.imr_sourceaddr.s_addr = inet_addr(src_addr);
+		group_source.imr_interface.s_addr = inet_addr(local_addr);
+		if(setsockopt(sock_desc, IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, (char *)&group_source, sizeof(group_source)) < 0)
+		{
+			perror("Adding multicast group error");
+			close(sock_desc);
+			return 1;
+		}
+	} else {
+		group.imr_multiaddr.s_addr = inet_addr(mcast_addr);
+		group.imr_interface.s_addr = inet_addr(local_addr);
+		if(setsockopt(sock_desc, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *)&group, sizeof(group)) < 0)
+		{
+			perror("Adding multicast group error");
+			close(sock_desc);
+			return 1;
+		}
 	}
 
 	signal(SIGINT, finish);
@@ -401,7 +423,7 @@ void usage(int return_code)
 {
 	// TODO:
 	// would be good to have -w
-	printf("Usage:\tmping -l -I <interface address> [-p <udp port>] [-g <multicast group>] [-q]\n");
+	printf("Usage:\tmping -l -I <interface address> [-p <udp port>] [-g <multicast group[/source]>] [-q]\n");
 	printf("\tmping -s -I <interface address> [-p <udp port>] [-g <multicast group>] ");
 	printf("[-i <interval in ms>] [-c <count>] [-T TTL ] [-q] [-S payload size]\n");
 	printf("\tDefaults: interval - 1 second, multicast group - %s , udp port - %d\n", DEFAULT_MADDR, DEFAULT_PORT );
@@ -499,10 +521,22 @@ int main (int argc, char *argv[ ])
 		snprintf(mcast_addr, MAX_ADDR_LEN, "%s", DEFAULT_MADDR);
 	else
 	{
-		in_addr_t addr;
+		in_addr_t group_addr;
+		char *source=NULL;
+		char *groupp = group;
+	    char *grp;
+
+		grp = strsep(&groupp, "/");
+		if (groupp != NULL) {
+			source = strsep(&groupp, "/");
+			snprintf(src_addr, MAX_ADDR_LEN, "%s",source);
+		}
+		group = grp;
+
 		snprintf(mcast_addr, MAX_ADDR_LEN, "%s",group);
-		addr=inet_addr(mcast_addr);
-		if ( addr == (in_addr_t)(-1) || !IN_MULTICAST(ntohl(addr)))
+
+		group_addr=inet_addr(mcast_addr);
+		if ( group_addr == (in_addr_t)(-1) || !IN_MULTICAST(ntohl(group_addr)))
 		{
 			fprintf(stderr, "Invalid address specified for multicast group - address must be multicast.\n");
 			usage(1);
